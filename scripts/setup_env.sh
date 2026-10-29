@@ -17,6 +17,8 @@ else
   conda create -y -n shareprice -c conda-forge python=3.14
 fi
 conda activate shareprice
+# xgboost's wheel links @rpath/libomp.dylib; conda-forge llvm-openmp puts it in $CONDA_PREFIX/lib
+conda install -y -q -c conda-forge llvm-openmp
 python -m pip install -q --upgrade pip
 python -m pip install -q -r requirements.txt
 
