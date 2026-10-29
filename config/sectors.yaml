@@ -1,0 +1,55 @@
+# Target sectors mapped to SEC SIC code ranges (inclusive).
+# Banks, REITs and insurers are excluded on purpose: P/TBV and FCF yield do not
+# mean the same thing for them, so the screen would give false passes.
+# Source for codes: SEC "Standard Industrial Classification (SIC) Code List".
+
+energy:
+  - [1220, 1241]   # coal mining
+  - [1310, 1389]   # oil & gas extraction and services
+  - [2910, 2999]   # petroleum refining
+  - [4610, 4619]   # pipelines (ex natural gas)
+  - [4920, 4925]   # natural gas transmission/distribution
+
+hard_assets:
+  - [1000, 1099]   # metal mining
+  - [1400, 1499]   # non-metallic minerals
+  - [2400, 2499]   # lumber and wood
+  - [2600, 2679]   # paper and packaging
+  - [2800, 2829]   # basic chemicals, plastics
+  - [2860, 2899]   # industrial chemicals, fertilisers
+  - [3210, 3299]   # glass, cement, stone
+  - [3310, 3399]   # steel and metals
+
+industrials:
+  - [1500, 1799]   # construction
+  - [3400, 3558]   # fabricated metal, industrial machinery
+  - [3560, 3569]   # general industrial machinery
+  - [3580, 3599]   # refrigeration, misc machinery
+  # excluded on purpose: 3559 (semiconductor equipment) and 3570-3579 (computers, networking)
+  - [3600, 3629]   # electrical equipment (ex semis 3674)
+  - [3700, 3799]   # transport equipment
+  - [4011, 4013]   # railroads
+  - [4210, 4231]   # trucking
+  - [4500, 4581]   # air transport
+  - [5000, 5099]   # durable goods wholesale
+
+maritime_shipping:
+  - [4400, 4499]   # water transportation (incl. 4412 deep sea foreign)
+
+old_economy:
+  - [2000, 2099]   # food
+  - [2100, 2199]   # tobacco
+  - [2200, 2399]   # textiles, apparel
+  - [2510, 2599]   # furniture
+  - [3140, 3199]   # footwear, leather
+  - [5140, 5199]   # non-durable wholesale
+  - [5300, 5399]   # general merchandise retail
+  - [5400, 5499]   # food stores
+  - [5500, 5599]   # auto dealers
+  - [7500, 7549]   # auto services
+
+mature_healthcare:
+  - [2833, 2836]   # pharma and biologics (profitability filter removes cash burners)
+  - [3841, 3851]   # medical instruments and supplies
+  - [5120, 5122]   # drug wholesale
+  - [8000, 8099]   # health services

@@ -1,0 +1,48 @@
+# Central settings. Thresholds here are the spec's rules; change them here, not in code.
+
+paths:
+  data_dir: data
+  cache_dir: data/cache
+  screener_out: data/screener
+  chroma_dir: knowledge_base/chroma
+  user_notes_dir: knowledge_base/user_notes
+  reports_dir: reports
+
+sec:
+  max_requests_per_second: 8        # SEC limit is 10/s; stay under it
+  sic_cache_days: 30                # re-pull company SIC codes monthly
+  exchanges: [NYSE, Nasdaq, NYSE American, NYSE Arca, CBOE]
+
+screener:
+  top_n: 30
+  fundamentals_cache_days: 1
+  max_workers: 6                    # parallel yfinance calls
+  rules:
+    forward_pe_max: 12.0
+    pe_percentile_max: 0.25         # alternative to forward P/E: bottom 25% of own history
+    ptbv_max: 1.5
+    fcf_yield_min: 0.08
+    market_cap_min: 300_000_000
+    share_growth_max: 0.03          # YoY share count growth
+  # Known data distortions, shown in the output and checked in the value-trap audit.
+  flags:
+    GM: "captive finance arm inflates FCF"
+    F: "captive finance arm inflates FCF"
+  # Composite score used to rank and fill up to top_n. Weights sum to 1.
+  score_weights:
+    fcf_yield: 0.30
+    forward_pe: 0.20
+    ptbv: 0.20
+    debt_trend: 0.15
+    dilution: 0.15
+
+knowledge_base:
+  forms: ["10-K", "10-Q", "8-K"]
+  per_form_limit: {"10-K": 1, "10-Q": 2, "8-K": 4}
+  chunk_chars: 2400                 # ~500-600 tokens for bge-small (512 max)
+  chunk_overlap: 300
+  table_chunk_chars: 3000
+  collection: filings_v1
+  notes_collection: user_notes_v1
+  embed_model: BAAI/bge-small-en-v1.5
+  embed_batch_size: 32
