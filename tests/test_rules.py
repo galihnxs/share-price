@@ -9,7 +9,7 @@ FIX = Path(__file__).parent / "fixtures" / "fundamentals_sample.csv"
 
 
 def screened():
-    cfg = settings()["screener"]
+    cfg = settings()["screener"]["track_a"]
     df = add_metrics(pd.read_csv(FIX))
     return score(apply_rules(df, cfg["rules"]), cfg["score_weights"]).set_index("ticker")
 
@@ -18,15 +18,16 @@ def test_zim_metrics():
     z = screened().loc["ZIM"]
     assert abs(z.fcf_yield - 991.5 / 3510.7) < 1e-9          # ~28%
     assert abs(z.ptbv - 3510.7 / 3911.5) < 1e-9               # ~0.90x
-    assert z.r_fcf_yield and z.r_valuation_ptbv and z.r_valuation_pe
-    assert z.r_debt_trend                                      # D/E 1.49 -> 1.42, falling
+    assert z.r_fcf_yield and z.r_valuation_pe
+    assert z.de_now < z.de_prev                                # D/E 1.49 -> 1.42, falling (scored, not a rule)
     assert z.hard_pass
 
 
-def test_pfe_fails_on_negative_tangible_book():
-    p = screened().loc["PFE"]
-    assert not p.r_valuation_ptbv and not p.hard_pass
-    assert "valuation_ptbv" in p.failed_rules
+def test_negative_tangible_book_gets_no_ptbv():
+    # P/TBV is a score input in track A now; negative tangible book must not look cheap.
+    s = screened()
+    assert pd.isna(s.loc["PFE"].ptbv)
+    assert s.loc["PFE"].score < s.loc["ZIM"].score
 
 
 def test_non_usd_statements_never_selected():

@@ -40,3 +40,20 @@ def sec_user_agent() -> str:
             '"Your Name your@email.com" (SEC rejects anonymous requests).'
         )
     return ua
+
+
+@lru_cache(maxsize=1)
+def scenarios() -> dict:
+    with open(ROOT / "config" / "scenarios.yaml") as f:
+        return yaml.safe_load(f)
+
+
+def cluster_of_sic(sic: int) -> str | None:
+    """Scenario cluster for a SIC code (first match in sectors.yaml), None if excluded or out of scope."""
+    sic = int(sic)
+    if any(lo <= sic <= hi for lo, hi in scenarios()["excluded_sic"]):
+        return None
+    for name, ranges in sectors().items():
+        if any(lo <= sic <= hi for lo, hi in ranges):
+            return name
+    return None

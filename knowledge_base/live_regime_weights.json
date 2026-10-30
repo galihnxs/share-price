@@ -1,0 +1,145 @@
+{
+  "as_of": "2026-10-30",
+  "price_date": "2026-10-29",
+  "method": "rule-based soft states + 2-state Markov switching-variance probability",
+  "scenarios": {
+    "ASIA_US_AI_DIVERGENCE": {
+      "name": "AI bust already in Asia, not yet in the US",
+      "state": "LATENT",
+      "state_probs": {
+        "LATENT": 0.615,
+        "IMMINENT": 0.133,
+        "ACTIVE_SHOCK": 0.001,
+        "POST_RECOVERY": 0.251
+      },
+      "z": 0.59,
+      "dz_21": -0.06,
+      "markov_high_vol": 0.239,
+      "z_price": -1.07,
+      "rsi_price": 44.5,
+      "price_proxy": "QQQ",
+      "polarity": 1,
+      "weights": {
+        "5": 0.154,
+        "21": 0.154,
+        "63": 0.246
+      },
+      "instruction": "Long-term only: counts for quarterly picks"
+    },
+    "HARD_TECH_BIO_AI": {
+      "name": "AI enables bio invention and hard physics/maths breakthroughs",
+      "state": "LATENT",
+      "state_probs": {
+        "LATENT": 0.978,
+        "IMMINENT": 0.008,
+        "ACTIVE_SHOCK": 0.001,
+        "POST_RECOVERY": 0.013
+      },
+      "z": -0.24,
+      "dz_21": -0.16,
+      "markov_high_vol": 0.7,
+      "z_price": 0.01,
+      "rsi_price": 48.8,
+      "price_proxy": "IGV",
+      "polarity": 1,
+      "weights": {
+        "5": 0.009,
+        "21": 0.009,
+        "63": 0.155
+      },
+      "instruction": "Long-term only: counts for quarterly picks"
+    },
+    "PANDEMIC_2028": {
+      "name": "COVID-like pandemic around 2028/2029",
+      "state": "IMMINENT",
+      "state_probs": {
+        "LATENT": 0.057,
+        "IMMINENT": 0.941,
+        "ACTIVE_SHOCK": 0.001,
+        "POST_RECOVERY": 0.001
+      },
+      "z": 1.44,
+      "dz_21": 1.61,
+      "markov_high_vol": 0.01,
+      "z_price": -0.24,
+      "rsi_price": 50.8,
+      "price_proxy": "SPY",
+      "polarity": 1,
+      "weights": {
+        "5": 0.377,
+        "21": 0.377,
+        "63": 0.386
+      },
+      "instruction": "Favour defensive beneficiaries"
+    },
+    "FINANCIAL_SYSTEM_SHOCK": {
+      "name": "Hit to the world financial system",
+      "state": "LATENT",
+      "state_probs": {
+        "LATENT": 0.877,
+        "IMMINENT": 0.121,
+        "ACTIVE_SHOCK": 0.001,
+        "POST_RECOVERY": 0.001
+      },
+      "z": 0.35,
+      "dz_21": 0.19,
+      "markov_high_vol": 0.047,
+      "z_price": 0.41,
+      "rsi_price": 60.3,
+      "price_proxy": "KRE",
+      "polarity": 1,
+      "weights": {
+        "5": 0.049,
+        "21": 0.049,
+        "63": 0.181
+      },
+      "instruction": "Long-term only: counts for quarterly picks"
+    },
+    "STRAIT_CHOKEPOINT_CRISIS": {
+      "name": "Energy crisis in Hormuz or food crisis via Malacca",
+      "state": "LATENT",
+      "state_probs": {
+        "LATENT": 0.788,
+        "IMMINENT": 0.018,
+        "ACTIVE_SHOCK": 0.001,
+        "POST_RECOVERY": 0.193
+      },
+      "z": -0.11,
+      "dz_21": 0.16,
+      "markov_high_vol": 0.657,
+      "z_price": -1.69,
+      "rsi_price": 41.8,
+      "price_proxy": "AAXJ",
+      "polarity": 1,
+      "weights": {
+        "5": 0.085,
+        "21": 0.085,
+        "63": 0.203
+      },
+      "instruction": "Long-term only: counts for quarterly picks"
+    },
+    "ASIA_KINETIC_WAR": {
+      "name": "Possible war in Asia",
+      "state": "IMMINENT",
+      "state_probs": {
+        "LATENT": 0.167,
+        "IMMINENT": 0.821,
+        "ACTIVE_SHOCK": 0.005,
+        "POST_RECOVERY": 0.006
+      },
+      "z": 0.53,
+      "dz_21": 1.58,
+      "markov_high_vol": 0.657,
+      "z_price": -1.69,
+      "rsi_price": 41.8,
+      "price_proxy": "AAXJ",
+      "polarity": 1,
+      "weights": {
+        "5": 0.333,
+        "21": 0.333,
+        "63": 0.358
+      },
+      "instruction": "Favour defensive beneficiaries"
+    }
+  }
+}

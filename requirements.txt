@@ -1,5 +1,5 @@
-# Python 3.14 (conda env "shareprice"). Data is fetched by the browser layer, so no
-# yfinance/edgartools here: Python only reads data/raw/.
+# Python 3.14 (conda env "shareprice"). Network access lives only in data_fetch/;
+# the modules read data/raw/. llvm-openmp (for xgboost) comes from conda, see scripts/setup_env.sh.
 pandas>=3.0
 numpy>=2.3
 pyarrow>=21
@@ -7,10 +7,16 @@ pyyaml>=6.0
 python-dotenv>=1.0
 tqdm>=4.66
 
+# Data layer (data_fetch/)
+requests>=2.32
+beautifulsoup4>=4.13
+lxml>=6.0
+
 # Module 2 - ML engine
 scikit-learn>=1.8
 xgboost>=3.0
 lightgbm>=4.6
+statsmodels>=0.14            # Module 0 Markov switching-variance
 
 # Module 3 - knowledge base (local embeddings on Apple Silicon MPS)
 torch>=2.9

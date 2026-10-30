@@ -7,6 +7,7 @@ paths:
   chroma_dir: knowledge_base/chroma
   user_notes_dir: knowledge_base/user_notes
   reports_dir: reports
+  ml_out: data/ml
 
 sec:
   max_requests_per_second: 8        # SEC limit is 10/s; stay under it
@@ -14,27 +15,37 @@ sec:
   exchanges: [NYSE, Nasdaq, NYSE American, NYSE Arca, CBOE]
 
 screener:
-  top_n: 30
+  top_per_cluster: 6                # quota per scenario cluster (6 clusters -> max 36)
+  max_candidates: 36                # plus any OPEN positions from portfolio.db (always added)
   fundamentals_cache_days: 1
-  max_workers: 6                    # parallel yfinance calls
-  rules:
-    forward_pe_max: 12.0
-    pe_percentile_max: 0.25         # alternative to forward P/E: bottom 25% of own history
-    ptbv_max: 1.5
-    fcf_yield_min: 0.08
-    market_cap_min: 300_000_000
-    share_growth_max: 0.03          # YoY share count growth
+  # Track A: hard assets, chokepoints, old economy, defence (clusters in config/scenarios.yaml)
+  track_a:
+    rules:
+      forward_pe_max: 12.0
+      pe_percentile_max: 0.25       # alternative to forward P/E: bottom 25% of own history (4-year proxy)
+      fcf_yield_min: 0.08
+      market_cap_min: 300_000_000
+      share_growth_max: 0.03        # safety gate (dilution)
+    score_weights: {fcf_yield: 0.30, forward_pe: 0.20, ptbv: 0.20, debt_trend: 0.15, dilution: 0.15}
+  # Track B: bio, diagnostics, semis/hardware, deep tech
+  track_b:
+    rules:
+      cash_to_debt_min: 1.5
+      runway_months_min: 24         # alternative to positive operating cash flow
+      price_to_book_max: 3.0
+      rnd_intensity_min: 0.08       # R&D / revenue (pre-revenue companies pass)
+      market_cap_min: 300_000_000
+      share_growth_max: 0.03        # safety gate (dilution), same as track A
+    score_weights: {cash_to_debt: 0.25, price_to_book: 0.25, rnd_intensity: 0.20, fcf_yield: 0.15, dilution: 0.15}
+  # Scenario 1 gate for the ai_hardware cluster: allowed only if that scenario is POST_RECOVERY,
+  # or the stock is deep value (forward P/E at or below this).
+  ai_hardware_max_fwd_pe: 20.0
   # Known data distortions, shown in the output and checked in the value-trap audit.
   flags:
     GM: "captive finance arm inflates FCF"
     F: "captive finance arm inflates FCF"
-  # Composite score used to rank and fill up to top_n. Weights sum to 1.
-  score_weights:
-    fcf_yield: 0.30
-    forward_pe: 0.20
-    ptbv: 0.20
-    debt_trend: 0.15
-    dilution: 0.15
+    APTV: "Versigent spin-off 2026-04-01 not adjusted in Yahoo price history"
+    ZIM: "pending $35.00 cash merger with Hapag-Lloyd: price tracks the deal"
 
 knowledge_base:
   forms: ["10-K", "10-Q", "8-K"]
@@ -46,3 +57,67 @@ knowledge_base:
   notes_collection: user_notes_v1
   embed_model: BAAI/bge-small-en-v1.5
   embed_batch_size: 32
+
+ml:
+  universe: screener                # train/predict on the latest screener candidates
+  benchmark: RSP                    # equal-weight S&P 500; target = beat it over the horizon
+  horizons: [5, 21, 63]             # trading days
+  target_min_excess: 0.0            # label 1 if stock return - benchmark return > this
+  history_years: 5
+  n_splits: 5                       # TimeSeriesSplit folds; purge gap = horizon (labels overlap)
+  min_train_days: 252
+  top_k: 5                          # picks per horizon: ticket, paper log, dashboard; edge is judged on this set
+  audit_spares: 4                   # extra names per horizon to audit, in case the audit rejects some picks
+  min_edge: 0.03                    # top-k precision must beat the base rate by this much...
+  min_z: 1.64                       # ...and be significant after shrinking n for overlapping labels
+  fundamentals_lag_days: 1          # a filing is usable from the next trading day
+  macro_lag_days: 1                 # FRED values publish the next day
+  decision_weekday: 4               # train, test and pick on Friday closes only (Friday capitulation window)
+  # Edge = all three: top-1 precision >= min_precision, profit factor > min_profit_factor,
+  # and lift over the base rate significant (z >= min_z, n shrunk for overlapping labels).
+  min_precision: 0.55
+  min_profit_factor: 1.05
+  model:                            # LightGBM classifier, regularised (shallow trees)
+    n_estimators: 300
+    learning_rate: 0.03
+    max_depth: 3
+    num_leaves: 7
+    min_child_weight: 10
+    min_child_samples: 50
+    subsample: 0.8
+    subsample_freq: 1
+    colsample_bytree: 0.7
+    reg_lambda: 1.0
+
+regime:
+  baseline_days: 756                # 3-year baseline for the Z-scores
+  window: 21                        # stress = 21-day move; velocity = 21-day change in Z
+  softness: 0.25                    # width of the soft thresholds (Z units) when splitting into states
+  markov_days: 756                  # history for the 2-state switching-variance model
+  thresholds: {latent: 0.75, active: 2.0, price_depressed: -1.0, markov_high: 0.70, rsi_low: 40, rsi_high: 55}
+  # Scenario weight per pick horizon by state. POST_RECOVERY also flips exposure polarity.
+  weights:
+    LATENT: {"5": 0.0, "21": 0.0, "63": 0.15}
+    IMMINENT: {"5": 0.40, "21": 0.40, "63": 0.40}
+    ACTIVE_SHOCK: {"5": 0.45, "21": 0.45, "63": 0.40}
+    POST_RECOVERY: {"5": 0.40, "21": 0.40, "63": 0.40}
+  rank_tilt: 0.05                   # how much the scenario tilt moves a pick's ML probability (max +/-0.05)
+
+ledger:
+  # Triple-barrier multiples of ATR_14 per horizon (trading days). Also used as the ML training labels.
+  barriers:
+    "5": {tp_atr: 2.0, sl_atr: 2.5, name: weekly}
+    "21": {tp_atr: 3.5, sl_atr: 3.5, name: monthly}
+    "63": {tp_atr: 6.0, sl_atr: 5.0, name: quarterly}
+  # PAPER -> LIVE promotion per horizon: validated model edge, OR paper record below.
+  promote_min_trades: 10            # owner's rule (10 trades is a weak test: CI ~ +/-30 pts)
+  promote_min_win_rate: 0.55
+  promote_require_significance: true  # also require win rate > walk-forward base rate at z >= ml.min_z
+  ml_hold_min: 0.55                 # STRONG HOLD needs ML probability above this
+  ml_broken_max: 0.35               # below this the thesis counts as broken
+  swap_prob_gap: 0.20               # flag SWAP CANDIDATE if a same-horizon name scores this much higher
+  # 8-K items that break the thesis on their own (early exit): bankruptcy, debt acceleration,
+  # impairment, financial statements no longer reliable.
+  toxic_8k_items: ["1.03", "2.04", "2.06", "4.02"]
+  # Items worth reading but often routine (listing transfer, officer change, auditor change, contract end).
+  review_8k_items: ["1.02", "2.05", "3.01", "4.01", "5.02"]

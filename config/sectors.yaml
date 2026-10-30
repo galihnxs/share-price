@@ -1,55 +1,71 @@
-# Target sectors mapped to SEC SIC code ranges (inclusive).
-# Banks, REITs and insurers are excluded on purpose: P/TBV and FCF yield do not
-# mean the same thing for them, so the screen would give false passes.
+# Screening universe = 6 scenario clusters mapped to SEC SIC code ranges (inclusive).
+# Order matters: a company goes to the FIRST cluster whose ranges contain its SIC code.
+# Excluded on purpose (see config/scenarios.yaml -> excluded_sic): banks, insurers, REITs,
+# retail/apparel, restaurants, entertainment, generic software/SaaS.
+# Track (screening rules) and scenario exposure per cluster live in config/scenarios.yaml.
 # Source for codes: SEC "Standard Industrial Classification (SIC) Code List".
 
-energy:
-  - [1220, 1241]   # coal mining
-  - [1310, 1389]   # oil & gas extraction and services
+# Scenario 1: Asia AI bust already happened, US not yet. Track B, regime-gated.
+ai_hardware:
+  - [3559, 3559]   # semiconductor equipment
+  - [3570, 3579]   # computers, storage, networking hardware
+  - [3670, 3679]   # semiconductors and electronic components
+
+# Scenario 2: AI enables bio invention and hard physics/math breakthroughs. Track B.
+bio_deeptech:
+  - [2833, 2834]   # medicinal chemicals, pharmaceutical preparations
+  - [2836, 2836]   # biologics
+  - [3826, 3829]   # lab analytical instruments, optical, measuring
+  - [8731, 8731]   # commercial physical and biological research
+
+# Scenario 3: COVID-like pandemic around 2028/2029. Track B.
+pandemic_defense:
+  - [2835, 2835]   # in-vitro diagnostics
+  - [3841, 3845]   # surgical, medical, dental, electromedical devices
+  - [5047, 5047]   # medical equipment wholesale
+  - [5120, 5122]   # drug wholesale
+  - [8071, 8071]   # medical laboratories
+
+# Scenario 4: shock to the world financial system. Track A defensives.
+financial_shelter:
+  - [1040, 1040]   # gold and silver ores
+  - [2000, 2039]   # food (grain mill 2040-2048 goes to the chokepoint cluster)
+  - [2049, 2099]   # food
+  - [2100, 2199]   # tobacco
+  - [2840, 2844]   # soap, cleaners, personal care
+  - [4900, 4919]   # utilities (gas transmission 4920-4925 goes to chokepoint)
+  - [4926, 4991]   # utilities
+
+# Scenario 5: Hormuz energy crisis or Malacca food crisis. Track A.
+chokepoint_energy_food:
+  - [100, 299]     # agricultural production
+  - [1220, 1241]   # coal
+  - [1310, 1389]   # oil and gas extraction and services
+  - [2040, 2048]   # grain mill products
+  - [2870, 2879]   # fertilisers, agricultural chemicals
   - [2910, 2999]   # petroleum refining
-  - [4610, 4619]   # pipelines (ex natural gas)
-  - [4920, 4925]   # natural gas transmission/distribution
+  - [4400, 4499]   # water transport (tankers, dry bulk, containers, gas carriers)
+  - [4610, 4619]   # pipelines
+  - [4920, 4925]   # natural gas transmission
+  - [5150, 5159]   # farm product raw materials wholesale
 
-hard_assets:
-  - [1000, 1099]   # metal mining
-  - [1400, 1499]   # non-metallic minerals
-  - [2400, 2499]   # lumber and wood
-  - [2600, 2679]   # paper and packaging
+# Scenario 6: possible war in Asia. Track A: defence, strategic materials, industrial base.
+defense_materials:
+  - [1000, 1039]   # metal mining (ex gold/silver)
+  - [1090, 1099]   # misc metal ores (rare earths, uranium)
   - [2800, 2829]   # basic chemicals, plastics
-  - [2860, 2899]   # industrial chemicals, fertilisers
-  - [3210, 3299]   # glass, cement, stone
   - [3310, 3399]   # steel and metals
-
-industrials:
-  - [1500, 1799]   # construction
-  - [3400, 3558]   # fabricated metal, industrial machinery
+  - [3480, 3489]   # ordnance
+  - [3720, 3729]   # aircraft and parts
+  - [3760, 3769]   # guided missiles, space vehicles
+  - [3795, 3795]   # tanks
+  - [3812, 3812]   # search, detection, navigation (defence electronics)
+  - [3400, 3479]   # fabricated metal (industrial base)
+  - [3490, 3558]   # industrial machinery (industrial base)
   - [3560, 3569]   # general industrial machinery
-  - [3580, 3599]   # refrigeration, misc machinery
-  # excluded on purpose: 3559 (semiconductor equipment) and 3570-3579 (computers, networking)
-  - [3600, 3629]   # electrical equipment (ex semis 3674)
-  - [3700, 3799]   # transport equipment
+  - [3580, 3629]   # misc machinery, electrical equipment
+  - [3700, 3719]   # motor vehicles and parts (industrial base)
+  - [3730, 3759]   # ships, railroad equipment, motorcycles
   - [4011, 4013]   # railroads
   - [4210, 4231]   # trucking
   - [4500, 4581]   # air transport
-  - [5000, 5099]   # durable goods wholesale
-
-maritime_shipping:
-  - [4400, 4499]   # water transportation (incl. 4412 deep sea foreign)
-
-old_economy:
-  - [2000, 2099]   # food
-  - [2100, 2199]   # tobacco
-  - [2200, 2399]   # textiles, apparel
-  - [2510, 2599]   # furniture
-  - [3140, 3199]   # footwear, leather
-  - [5140, 5199]   # non-durable wholesale
-  - [5300, 5399]   # general merchandise retail
-  - [5400, 5499]   # food stores
-  - [5500, 5599]   # auto dealers
-  - [7500, 7549]   # auto services
-
-mature_healthcare:
-  - [2833, 2836]   # pharma and biologics (profitability filter removes cash burners)
-  - [3841, 3851]   # medical instruments and supplies
-  - [5120, 5122]   # drug wholesale
-  - [8000, 8099]   # health services

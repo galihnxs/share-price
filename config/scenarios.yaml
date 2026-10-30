@@ -1,0 +1,64 @@
+# The 6 forward scenarios: market proxies (Module 0), screening track per cluster (Module 1),
+# and how each cluster is exposed to each scenario (Modules 2 and 4).
+
+# `price` = the asset the event HURTS. POST_RECOVERY needs it depressed (Z < -1) and turning up.
+scenarios:
+  ASIA_US_AI_DIVERGENCE:
+    name: "AI bust already in Asia, not yet in the US"
+    # Stress rises when US AI (QQQ) outruns Asian tech (EWT, KWEB): the gap that would close in a US bust.
+    stress: {type: spread, long: [QQQ], short: [EWT, KWEB]}
+    price: QQQ         # what the event hurts: US AI leaders
+  HARD_TECH_BIO_AI:
+    name: "AI enables bio invention and hard physics/maths breakthroughs"
+    stress: {type: spread, long: [XBI], short: [IGV]}
+    price: IGV         # what the event hurts: incumbent software
+  PANDEMIC_2028:
+    name: "COVID-like pandemic around 2028/2029"
+    # Health care outperforming the market + biotech volatility.
+    stress: {type: spread_plus_vol, long: [XLV], short: [SPY], vol: XBI}
+    price: SPY         # what the event hurts: the broad market
+  FINANCIAL_SYSTEM_SHOCK:
+    name: "Hit to the world financial system"
+    # Credit spread proxy (IEF over HYG), regional banks falling, VIX rising.
+    stress: {type: composite, parts: [{spread: [IEF, HYG]}, {down: KRE}, {level: "^VIX"}]}
+    price: KRE         # what the event hurts: regional banks
+  STRAIT_CHOKEPOINT_CRISIS:
+    name: "Energy crisis in Hormuz or food crisis via Malacca"
+    stress: {type: composite, parts: [{up: "BZ=F"}, {up: CF}, {up: BDRY}]}
+    price: AAXJ        # what the event hurts: Asian energy/food importers
+  ASIA_KINETIC_WAR:
+    name: "Possible war in Asia"
+    # Defence and gold up while Asian equities and the won fall (KRW=X up = won weaker).
+    stress: {type: composite, parts: [{spread: [ITA, AAXJ]}, {spread: ["GC=F", AAXJ]}, {up: "KRW=X"}]}
+    price: AAXJ
+
+# Every Yahoo symbol Module 0 needs (fetched with browser_fetch/04_prices.js).
+proxy_symbols: [QQQ, EWT, KWEB, XBI, IGV, XLV, SPY, HYG, IEF, KRE, "^VIX", "BZ=F", CF, BDRY, ITA, "GC=F", AAXJ, "KRW=X"]
+
+# Screening track per cluster (rules in settings.yaml screener.track_a / track_b).
+clusters:
+  ai_hardware: {track: B, scenario: ASIA_US_AI_DIVERGENCE, regime_gated: true}
+  bio_deeptech: {track: B, scenario: HARD_TECH_BIO_AI}
+  pandemic_defense: {track: B, scenario: PANDEMIC_2028}
+  financial_shelter: {track: A, scenario: FINANCIAL_SYSTEM_SHOCK}
+  chokepoint_energy_food: {track: A, scenario: STRAIT_CHOKEPOINT_CRISIS}
+  defense_materials: {track: A, scenario: ASIA_KINETIC_WAR}
+
+# Never screened, whatever the cluster ranges say.
+excluded_sic:
+  - [5200, 5999]   # retail, apparel stores, restaurants (5812)
+  - [2300, 2399]   # apparel manufacturing
+  - [6000, 6799]   # banks, credit, brokers, insurers, REITs (6798), holding/investment offices
+  - [7370, 7379]   # software, SaaS, IT services
+  - [7800, 7999]   # entertainment
+
+# How a cluster's companies fare if a scenario hits: -2 (badly hurt) .. +2 (clear winner).
+# Judgment, not data: edit freely. Columns follow the scenario order above.
+exposure:
+  #                         AI_DIV  BIO_AI  PANDEMIC  FIN_SHOCK  STRAIT  ASIA_WAR
+  ai_hardware:             [-2,     1,      0,        -1,        -1,     -2]
+  bio_deeptech:            [ 0,     2,      1,         0,         0,      0]
+  pandemic_defense:        [ 0,     1,      2,         0,         0,      0]
+  financial_shelter:       [ 1,     0,      1,         2,         0,      1]
+  chokepoint_energy_food:  [ 0,     0,     -1,        -1,         2,      1]
+  defense_materials:       [-1,     0,     -1,        -1,         1,      2]

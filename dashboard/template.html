@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share Price Pipeline</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  body { background:#0f172a; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .card { background:#1e293b; border:1px solid #334155; border-radius:0.75rem; }
+  th { text-align:left; font-weight:500; color:#94a3b8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; }
+  td, th { padding:0.5rem 0.75rem; white-space:nowrap; }
+  tr + tr td { border-top:1px solid #334155; }
+  .tab[aria-selected="true"] { background:#334155; color:#f8fafc; }
+  .chip[aria-selected="true"] { outline:1px solid #38bdf8; }
+  .excerpt { white-space:pre-wrap; }
+</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+<script>window.PIPELINE_DATA = /*__PIPELINE_DATA__*/null;</script>
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <header class="flex flex-wrap items-baseline justify-between gap-2">
+    <h1 class="text-xl font-semibold text-slate-50">Share Price Pipeline</h1>
+    <p class="text-sm text-slate-400" id="meta"></p>
+  </header>
+  <p class="text-xs text-amber-300/80">Research tool, not financial advice. PAPER rows are simulated and need no order.</p>
+
+  <!-- Zone 1: 6-scenario macro state bar -->
+  <section>
+    <h2 class="text-sm font-medium text-slate-400 mb-2">Macro regime: 6 scenarios</h2>
+    <div id="regimes" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"></div>
+  </section>
+
+  <!-- Zone 2: Friday ticket -->
+  <section class="card p-4 space-y-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="text-lg font-semibold text-slate-50">Friday Capitulation Execution Ticket</h2>
+      <div id="badges" class="flex flex-wrap gap-2"></div>
+    </div>
+    <div>
+      <h3 class="text-sm text-slate-400 mb-1">Expiring / triggered shares to sell or roll over</h3>
+      <div class="overflow-x-auto"><table class="w-full text-sm mono" id="sells"></table></div>
+    </div>
+    <div>
+      <h3 class="text-sm text-slate-400 mb-1">New 1-share limit orders (Friday US session)</h3>
+      <div class="overflow-x-auto"><table class="w-full text-sm mono" id="buys"></table></div>
+    </div>
+  </section>
+
+  <!-- Model edge strip -->
+  <section>
+    <h2 class="text-sm font-medium text-slate-400 mb-2">Is the model's edge real? (walk-forward, Friday closes)</h2>
+    <div id="model" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+  </section>
+
+  <!-- Zone 3: portfolio + gauges -->
+  <section class="card p-4 space-y-3">
+    <h2 class="text-lg font-semibold text-slate-50">My Live Portfolio &amp; Exit Radar</h2>
+    <div id="gauges" class="space-y-3"></div>
+  </section>
+
+  <!-- Zone 4: deep-dive tabs -->
+  <section class="card p-4 space-y-4">
+    <div class="flex flex-wrap gap-2" role="tablist" id="tabs"></div>
+    <div class="flex flex-wrap gap-2" id="chips"></div>
+    <div id="deep" class="grid grid-cols-1 lg:grid-cols-3 gap-4"></div>
+  </section>
+
+  <section class="card p-4">
+    <h2 class="text-sm font-medium text-slate-400 mb-2">Closed positions (latest 30)</h2>
+    <div class="overflow-x-auto"><table class="w-full text-sm mono" id="closed"></table></div>
+  </section>
+</div>
+
+<script>
+const D = window.PIPELINE_DATA || {};
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const pct = (x, d = 1) => x == null ? 'n/a' : (x * 100).toFixed(d) + '%';
+const num = (x, d = 2) => x == null ? 'n/a' : Number(x).toFixed(d);
+const money = x => x == null ? 'n/a' : '$' + Number(x).toFixed(2);
+const STATE_CLS = { LATENT: 'bg-slate-600 text-slate-100', IMMINENT: 'bg-amber-500 text-slate-900',
+  ACTIVE_SHOCK: 'bg-rose-600 text-white', POST_RECOVERY: 'bg-emerald-500 text-slate-900' };
+const ACTION_CLS = a => /TAKE PROFIT|CLOSED_TP/.test(a) ? 'text-emerald-400' : /STOP|BROKEN|EXIT|CLOSED_SL/.test(a) ? 'text-rose-400'
+  : /EXPIRED|ROLLOVER|SELL/.test(a) ? 'text-amber-300' : 'text-slate-200';
+
+$('meta').textContent = `Generated ${D.generated || ''} · prices to ${D.price_date || 'n/a'}`;
+
+// Zone 1
+const SHORT = { ASIA_US_AI_DIVERGENCE: 'AI divergence', HARD_TECH_BIO_AI: 'Bio / hard-tech AI', PANDEMIC_2028: 'Pandemic 2028',
+  FINANCIAL_SYSTEM_SHOCK: 'Financial shock', STRAIT_CHOKEPOINT_CRISIS: 'Strait crisis', ASIA_KINETIC_WAR: 'Asia war' };
+for (const [k, s] of Object.entries(D.macro_regimes || {})) {
+  const c = el('div', 'card p-3 space-y-2');
+  c.title = s.name;
+  c.append(el('div', 'text-xs text-slate-400', SHORT[k] || k));
+  const b = el('span', 'inline-block text-xs font-semibold px-2 py-0.5 rounded ' + (STATE_CLS[s.state] || ''), s.state.replace('_', ' '));
+  c.append(b);
+  c.append(el('div', 'mono text-sm', `Z ${s.z >= 0 ? '+' : ''}${s.z.toFixed(2)}  Δ21 ${s.dz_21 >= 0 ? '+' : ''}${s.dz_21.toFixed(2)}`));
+  c.append(el('div', 'text-xs ' + (s.polarity < 0 ? 'text-emerald-300' : 'text-slate-400'),
+    s.polarity < 0 ? 'Weights INVERTED: accumulate survivors' : `weights ${s.weights['5']}/${s.weights['21']}/${s.weights['63']}`));
+  $('regimes').append(c);
+}
+
+// Badges
+for (const [h, b] of Object.entries(D.badges || {})) {
+  const live = b.mode === 'LIVE';
+  const e = el('span', 'text-xs px-2 py-1 rounded ' + (live ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-amber-200'),
+    `${h}d: ${b.badge}`);
+  e.title = b.reason; $('badges').append(e);
+}
+
+function table(id, cols, rows, empty) {
+  const t = $(id); t.replaceChildren();
+  if (!rows.length) { const tr = el('tr'); const td = el('td', 'text-slate-400', empty); tr.append(td); t.append(tr); return; }
+  const hr = el('tr'); cols.forEach(c => hr.append(el('th', null, c[0]))); t.append(hr);
+  rows.forEach(r => { const tr = el('tr'); cols.forEach(c => { const td = el('td'); const v = c[1](r);
+    if (v instanceof Node) td.append(v); else td.textContent = v; tr.append(td); }); t.append(tr); });
+}
+function copyBtn(text, label) {
+  const b = el('button', 'ml-1 text-xs px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600', label || 'copy');
+  b.onclick = () => navigator.clipboard.writeText(String(text)).then(() => { b.textContent = 'copied'; setTimeout(() => b.textContent = label || 'copy', 1200); });
+  return b;
+}
+function tickerCell(r, copy) {
+  const s = el('div');
+  const top = el('div'); top.append(el('span', 'font-semibold text-slate-50', r.ticker));
+  if (copy) top.append(copyBtn(r.ticker));
+  s.append(top);
+  if (r.name) s.append(el('div', 'text-xs text-slate-400 font-sans', `${r.name}${r.exchange ? ' · ' + r.exchange : ''}`));
+  return s;
+}
+function withCopy(text) { const s = el('span'); s.append(el('span', null, text)); s.append(copyBtn(String(text).replace('$', ''))); return s; }
+
+// Zone 2
+const fo = D.friday_orders || { sell_or_rollover: [], new_buys: [] };
+table('sells', [['Ticker / company', r => tickerCell(r, true)], ['Horizon', r => r.horizon_name], ['Mode', r => r.mode],
+  ['P&L', r => (r.pnl_pct >= 0 ? '+' : '') + r.pnl_pct.toFixed(2) + '%'],
+  ['Trigger', r => { const s = el('span', ACTION_CLS(r.action), r.action); return s; }]],
+  fo.sell_or_rollover, 'No open position needs action.');
+table('buys', [['Horizon', r => r.horizon_name], ['#', r => r.rank], ['Ticker / company', r => tickerCell(r, true)],
+  ['Badge', r => el('span', r.mode === 'LIVE' ? 'text-emerald-400' : 'text-amber-200', r.badge)],
+  ['Conviction', r => r.conviction_pct.toFixed(0) + '%'], ['Limit buy', r => withCopy(money(r.limit))],
+  ['GTC take-profit', r => withCopy(money(r.tp))], ['GTC stop-loss', r => withCopy(money(r.sl))],
+  ['Expires', r => r.expiry], ['Audit', r => r.audit]], fo.new_buys, 'No new orders.');
+
+// Model strip
+for (const [h, m] of Object.entries(D.model || {})) {
+  const x = m.metrics, c = el('div', 'card p-3 space-y-1');
+  c.append(el('div', 'text-sm text-slate-300', `${m.name} (${h}d)`));
+  c.append(el('div', 'mono text-sm', `Top-${x.k} win ${pct(x.topk_precision)} vs base ${pct(x.base_rate)}`));
+  c.append(el('div', 'mono text-xs text-slate-400', `lift ${(x.lift * 100).toFixed(1)} pts · z ${x.z_effective} · PF ${x.profit_factor_topk} · AUC ${x.auc}`));
+  c.append(el('div', 'mono text-xs text-slate-500', `#1 only: ${pct(x.top1_precision)} · z ${x.top1_z} · PF ${x.profit_factor_top1}`));
+  c.append(el('div', 'text-xs font-semibold ' + (x.edge ? 'text-emerald-400' : 'text-rose-300'), x.edge ? 'EDGE' : 'NO EDGE YET'));
+  $('model').append(c);
+}
+
+// Zone 3: gauges
+const pos = D.open_positions || [];
+if (!pos.length) $('gauges').append(el('p', 'text-sm text-slate-400', 'No open positions. Tell Claude "I bought TICKER at PRICE" to add one.'));
+for (const p of pos) {
+  const row = el('div', 'space-y-1');
+  const head = el('div', 'flex flex-wrap items-center gap-2 text-sm');
+  head.append(el('span', 'font-semibold text-slate-50 mono', p.ticker));
+  if (p.name) head.append(el('span', 'text-slate-300', `${p.name}${p.exchange ? ' (' + p.exchange + ')' : ''}`));
+  head.append(el('span', 'text-xs px-1.5 py-0.5 rounded ' + (p.mode === 'PAPER' ? 'bg-slate-700 text-amber-200' : 'bg-sky-700 text-white'), p.mode));
+  head.append(el('span', 'text-slate-400', p.horizon_name));
+  head.append(el('span', 'mono ' + (p.pnl_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'), (p.pnl_pct >= 0 ? '+' : '') + p.pnl_pct.toFixed(2) + '%'));
+  head.append(el('span', 'text-xs px-2 py-0.5 rounded-full bg-slate-700 mono', `T-minus ${p.days_left} trading days`));
+  head.append(el('span', 'text-xs font-semibold ' + ACTION_CLS(p.action), p.action));
+  if (p.swap_candidate) head.append(el('span', 'text-xs px-1.5 py-0.5 rounded bg-violet-600 text-white', 'SWAP CANDIDATE: ' + p.swap_candidate));
+  if ((p.review_8k || []).length) head.append(el('span', 'text-xs text-amber-300', `8-K to review: ${p.review_8k.map(f => f.date + ' items ' + f.items).join('; ')}`));
+  row.append(head);
+  // gauge: SL ... entry ... TP, marker at last
+  const lo = Math.min(p.sl, p.last), hi = Math.max(p.tp, p.last), span = (hi - lo) || 1;
+  const at = v => ((v - lo) / span * 100).toFixed(2) + '%';
+  const g = el('div', 'relative h-3 rounded bg-gradient-to-r from-rose-700 via-slate-600 to-emerald-700');
+  const mk = (v, cls, h) => { const m = el('div', 'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 ' + cls); m.style.left = at(v); m.style.height = h; return m; };
+  g.append(mk(p.entry_price, 'w-0.5 bg-slate-200', '1rem'));
+  g.append(mk(p.last, 'w-3 rounded-full bg-white ring-2 ring-sky-400', '0.75rem'));
+  row.append(g);
+  const lab = el('div', 'flex justify-between text-xs mono text-slate-400');
+  lab.append(el('span', null, 'SL ' + money(p.sl))); lab.append(el('span', null, 'entry ' + money(p.entry_price) + ' · last ' + money(p.last)));
+  lab.append(el('span', null, 'TP ' + money(p.tp)));
+  row.append(lab);
+  $('gauges').append(row);
+}
+
+// Zone 4: tabs (one per horizon), each with its top picks
+const picks = D.top_picks_rag || {};
+let chart, curH = null;
+function showPick(h, i) {
+  const hp = picks[h], p = hp.picks[i], box = $('deep'); box.replaceChildren();
+  document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-selected', String(c.dataset.i === String(i))));
+  if (!p) return;
+  const q = el('div', 'space-y-2');
+  q.append(el('div', 'text-2xl font-semibold mono text-slate-50', `#${p.rank} ${p.ticker}`));
+  if (p.name) {
+    const nm = el('div', 'flex items-center gap-2');
+    nm.append(el('span', 'text-base text-slate-200', p.name));
+    if (p.exchange) nm.append(el('span', 'text-xs px-1.5 py-0.5 rounded bg-slate-700', p.exchange));
+    nm.append(copyBtn(p.name, 'copy name'));
+    q.append(nm);
+  }
+  q.append(el('div', 'text-xs text-slate-400', `${p.cluster} · ${p.ticket.badge}`));
+  const f = p.fundamentals || {}, tk = p.ticket;
+  [['Model probability', pct(p.prob)], ['Scenario tilt', p.scenario_tilt == null ? 'n/a' : (p.scenario_tilt >= 0 ? '+' : '') + p.scenario_tilt],
+   ['Limit / TP / SL', `${money(tk.limit)} / ${money(tk.tp)} / ${money(tk.sl)}`], ['Expires', tk.expiry],
+   ['Fwd P/E', num(f.fwd_pe)], ['FCF yield', pct(f.fcf_yield)], ['P/TBV', num(f.ptbv ?? f.price_to_book)],
+   ['Screen', f.pass_status ?? 'n/a'], ['Audit', (p.audit || {}).verdict || 'NOT AUDITED']].forEach(([k, v]) => {
+    const r = el('div', 'flex justify-between gap-4 text-sm border-b border-slate-700 py-1'); r.append(el('span', 'text-slate-400', k)); r.append(el('span', 'mono text-right', String(v))); q.append(r); });
+  if (f.flag) q.append(el('div', 'text-xs text-amber-300', 'Flag: ' + f.flag));
+  box.append(q);
+  const cw = el('div', 'flex items-center justify-center'); const cv = el('canvas'); cv.height = 260; cw.append(cv); box.append(cw);
+  if (chart) chart.destroy();
+  chart = new Chart(cv, { type: 'radar', data: { labels: (D.scenario_names || []).map(n => SHORT[n] || n),
+      datasets: [{ label: 'Scenario exposure (-2..+2)', data: p.scenario_scores, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.2)' }] },
+    options: { scales: { r: { min: -2, max: 2, ticks: { stepSize: 1, color: '#94a3b8', backdropColor: 'transparent' },
+      grid: { color: '#334155' }, angleLines: { color: '#334155' }, pointLabels: { color: '#cbd5e1' } } },
+      plugins: { legend: { labels: { color: '#cbd5e1' } } } } });
+  const a = el('div', 'space-y-3 text-sm');
+  const au = p.audit || {};
+  a.append(el('div', 'font-semibold text-slate-50', 'Value-trap audit: ' + (au.verdict || 'not audited yet')));
+  if (au.summary) a.append(el('p', 'text-slate-300', au.summary));
+  for (const pt of au.points || []) {
+    const d = el('div', 'space-y-1'); d.append(el('p', null, '• ' + pt.text));
+    for (const cid of pt.cite || []) {
+      const ex = (p.excerpts || {})[cid]; if (!ex) continue;
+      const det = el('details', 'bg-slate-900 rounded p-2'); det.append(el('summary', 'text-xs text-sky-300 cursor-pointer', `${ex.form} ${ex.date} · ${ex.section} · ${cid}`));
+      det.append(el('div', 'excerpt text-xs text-slate-300 mt-1', ex.text.slice(0, 1500)));
+      if (ex.url) { const l = el('a', 'text-xs text-sky-400 underline', 'Open filing'); l.href = ex.url; l.target = '_blank'; det.append(l); }
+      d.append(det);
+    }
+    a.append(d);
+  }
+  box.append(a);
+}
+function showTab(h) {
+  curH = h;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.h === h)));
+  const hp = picks[h], bar = $('chips'); bar.replaceChildren();
+  hp.picks.forEach((p, i) => {
+    const c = el('button', 'chip tab text-sm mono px-3 py-1.5 rounded bg-slate-800', `#${p.rank} ${p.ticker} ${pct(p.prob, 0)}`);
+    if (p.name) c.title = p.name;
+    c.dataset.i = String(i); c.onclick = () => showPick(h, i); bar.append(c);
+  });
+  if ((hp.skipped || []).length) bar.append(el('span', 'text-xs text-rose-300 self-center',
+    'Skipped by audit: ' + hp.skipped.map(s => `${s.ticker} ${pct(s.prob, 0)} (${s.verdict})`).join(', ')));
+  showPick(h, 0);
+}
+for (const [h, p] of Object.entries(picks)) {
+  const t = el('button', 'tab text-sm px-3 py-1.5 rounded bg-slate-800', `${p.horizon_name} (${h}d): ${p.picks.length} picks`);
+  t.setAttribute('role', 'tab'); t.dataset.h = h; t.onclick = () => showTab(h); $('tabs').append(t);
+}
+const first = Object.keys(picks)[0]; if (first) showTab(first);
+
+table('closed', [['Ticker', r => r.ticker], ['Horizon', r => r.horizon + 'd'], ['Mode', r => r.mode], ['Entry', r => money(r.entry_price)],
+  ['Exit', r => money(r.exit_price)], ['Return', r => r.ret_pct == null ? 'n/a' : (r.ret_pct * 100).toFixed(2) + '%'],
+  ['Status', r => el('span', ACTION_CLS(r.status), r.status)], ['Exit date', r => r.exit_date]], D.closed_positions || [], 'None yet.');
+</script>
+</body>
+</html>
